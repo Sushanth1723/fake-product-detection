@@ -1,4 +1,4 @@
-const API_BASE_URL = "https://fake-product-detection-goix.onrender.com";
+const API_URL = "https://fake-product-detection-goix.onrender.com";
 
 async function request(url, options = {}) {
   const response = await fetch(`${API_URL}${url}`, {
