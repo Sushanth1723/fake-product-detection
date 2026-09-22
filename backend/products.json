@@ -1,0 +1,15 @@
+[
+  {
+    "productId": "FP-6ECCAEFC17",
+    "name": "samsung galaxy s25",
+    "brand": "samsung",
+    "manufacturer": "samsung electronics",
+    "category": "elecronics",
+    "batchNumber": "SAM2026001",
+    "manufacturingDate": "2026-07-22",
+    "expiryDate": "2029-09-22",
+    "transactionHash": "0x96dadba635ca77c4f5b94cd0cd111420f3b9279e54638288d7a103205331044d",
+    "blockNumber": 2,
+    "createdAt": "2026-09-22T15:20:55.298Z"
+  }
+]

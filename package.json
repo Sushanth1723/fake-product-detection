@@ -1,0 +1,21 @@
+{
+  "name": "fake-product-detection-blockchain",
+  "version": "1.0.0",
+  "private": true,
+  "scripts": {
+    "chain:compile": "hardhat compile",
+    "chain:node": "hardhat node",
+    "chain:deploy": "hardhat run scripts/deploy.js --network localhost",
+    "server": "node backend/server.js"
+  },
+  "dependencies": {
+    "cors": "^2.8.5",
+    "dotenv": "^16.4.7",
+    "ethers": "^6.15.0",
+    "express": "^5.1.0",
+    "hardhat": "^2.26.3"
+  },
+  "devDependencies": {
+    "@nomicfoundation/hardhat-toolbox": "^6.1.0"
+  }
+}
