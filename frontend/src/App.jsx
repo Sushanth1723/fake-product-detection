@@ -127,7 +127,6 @@ function Layout({ children }) {
 
         <nav className={open ? "nav open" : "nav"}>
 
-
           <button
             className="theme-toggle"
             type="button"
@@ -1387,10 +1386,6 @@ function Register() {
             </p>
 
 
-            {/* =========================
-                GENERATED QR CODE
-            ========================= */}
-
             <div
               style={{
                 marginTop: "20px",
@@ -1448,7 +1443,9 @@ function Register() {
 
               <Link
                 className="btn secondary"
-                to={`/verify?product=${message.product.productId}`}
+                to={`/verify?product=${encodeURIComponent(
+                  message.product.productId
+                )}`}
               >
 
                 Verify Product →
@@ -1541,34 +1538,95 @@ function Products() {
     useState(true);
 
 
+  const [error, setError] =
+    useState("");
+
+
   useEffect(() => {
 
-    api.products()
+    async function loadProducts() {
 
-      .then((data) => {
+      setLoading(true);
+
+      setError("");
+
+
+      try {
+
+        const data =
+          await api.products();
+
 
         setProducts(
-          data.products || []
+          Array.isArray(data?.products)
+            ? data.products
+            : []
         );
 
-      })
 
-      .catch((error) => {
+      } catch (error) {
 
         console.error(
           "Product loading error:",
           error
         );
 
-      })
 
-      .finally(() => {
+        setError(
+          error.message ||
+          "Unable to load product registry."
+        );
+
+
+      } finally {
 
         setLoading(false);
 
-      });
+      }
+
+    }
+
+
+    loadProducts();
 
   }, []);
+
+
+  function downloadQR(product) {
+
+    const canvas =
+      document.getElementById(
+        `qr-${product.productId}`
+      );
+
+
+    if (!canvas) {
+      return;
+    }
+
+
+    const image =
+      canvas.toDataURL("image/png");
+
+
+    const link =
+      document.createElement("a");
+
+
+    link.href = image;
+
+
+    link.download =
+      `${product.productId}-QR.png`;
+
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+  }
 
 
   return (
@@ -1595,12 +1653,29 @@ function Products() {
 
         <p>
 
-          Products registered through this
-          demo are backed by the blockchain.
+          Products registered through BlockVerify
+          are backed by blockchain records.
 
         </p>
 
       </div>
+
+
+      {error && (
+
+        <div className="error-message">
+
+          <AlertTriangle size={20} />
+
+          <span>
+
+            {error}
+
+          </span>
+
+        </div>
+
+      )}
 
 
       <div className="table-wrap">
@@ -1639,6 +1714,10 @@ function Products() {
                 Transaction
               </th>
 
+              <th>
+                Verify
+              </th>
+
             </tr>
 
           </thead>
@@ -1646,13 +1725,12 @@ function Products() {
 
           <tbody>
 
-
             {loading && (
 
               <tr>
 
                 <td
-                  colSpan="7"
+                  colSpan="8"
                   className="empty"
                 >
 
@@ -1666,12 +1744,13 @@ function Products() {
 
 
             {!loading &&
+              !error &&
               products.length === 0 && (
 
                 <tr>
 
                   <td
-                    colSpan="7"
+                    colSpan="8"
                     className="empty"
                   >
 
@@ -1691,13 +1770,14 @@ function Products() {
                   key={product.productId}
                 >
 
-
                   {/* PRODUCT ID */}
 
                   <td>
 
                     <Link
-                      to={`/verify?product=${product.productId}`}
+                      to={`/verify?product=${encodeURIComponent(
+                        product.productId
+                      )}`}
                       className="id-link"
                     >
 
@@ -1708,29 +1788,26 @@ function Products() {
                   </td>
 
 
-                  {/* =========================
-                      QR CODE
-                  ========================= */}
+                  {/* QR CODE */}
 
                   <td>
 
                     <div
                       style={{
                         background: "#ffffff",
-                        padding: "8px",
-                        borderRadius: "8px",
+                        padding: "10px",
+                        borderRadius: "10px",
                         display: "inline-flex",
                         flexDirection: "column",
                         alignItems: "center",
-                        gap: "5px"
+                        gap: "8px"
                       }}
                     >
 
                       <QRCodeCanvas
-                        value={
-                          product.productId
-                        }
-                        size={90}
+                        id={`qr-${product.productId}`}
+                        value={product.productId}
+                        size={100}
                         bgColor="#ffffff"
                         fgColor="#000000"
                         level="H"
@@ -1745,9 +1822,26 @@ function Products() {
                         }}
                       >
 
-                        Scan to verify
+                        {product.productId}
 
                       </small>
+
+
+                      <button
+                        type="button"
+                        className="btn secondary"
+                        style={{
+                          fontSize: "12px",
+                          padding: "6px 10px"
+                        }}
+                        onClick={() =>
+                          downloadQR(product)
+                        }
+                      >
+
+                        Download
+
+                      </button>
 
                     </div>
 
@@ -1758,7 +1852,11 @@ function Products() {
 
                   <td>
 
-                    {product.name}
+                    <strong>
+
+                      {product.name || "—"}
+
+                    </strong>
 
                   </td>
 
@@ -1767,7 +1865,7 @@ function Products() {
 
                   <td>
 
-                    {product.brand}
+                    {product.brand || "—"}
 
                   </td>
 
@@ -1776,7 +1874,7 @@ function Products() {
 
                   <td>
 
-                    {product.manufacturer}
+                    {product.manufacturer || "—"}
 
                   </td>
 
@@ -1785,7 +1883,7 @@ function Products() {
 
                   <td>
 
-                    {product.batchNumber}
+                    {product.batchNumber || "—"}
 
                   </td>
 
@@ -1794,13 +1892,51 @@ function Products() {
 
                   <td>
 
-                    <span className="hash">
+                    {product.transactionHash ? (
 
-                      {product.transactionHash
-                        ? `${product.transactionHash.slice(0, 12)}...`
-                        : "—"}
+                      <span
+                        className="hash"
+                        title={
+                          product.transactionHash
+                        }
+                      >
 
-                    </span>
+                        {product.transactionHash.slice(
+                          0,
+                          12
+                        )}
+
+                        ...
+
+                      </span>
+
+                    ) : (
+
+                      "—"
+
+                    )}
+
+                  </td>
+
+
+                  {/* VERIFY */}
+
+                  <td>
+
+                    <Link
+                      className="btn primary"
+                      style={{
+                        fontSize: "12px",
+                        padding: "7px 10px"
+                      }}
+                      to={`/verify?product=${encodeURIComponent(
+                        product.productId
+                      )}`}
+                    >
+
+                      Verify
+
+                    </Link>
 
                   </td>
 
@@ -1813,6 +1949,42 @@ function Products() {
         </table>
 
       </div>
+
+
+      {!loading &&
+        !error &&
+        products.length > 0 && (
+
+          <div
+            className="tip"
+            style={{
+              marginTop: "20px"
+            }}
+          >
+
+            <ShieldCheck size={22} />
+
+            <div>
+
+              <b>
+                Registry information
+              </b>
+
+              <p>
+
+                Each registered product has a unique
+                product ID and QR code. Scanning the
+                QR code opens the verification page,
+                where the product can be checked
+                against the blockchain.
+
+              </p>
+
+            </div>
+
+          </div>
+
+        )}
 
     </section>
 
@@ -1981,7 +2153,6 @@ function Auth() {
         className="form-card auth-card"
         onSubmit={submit}
       >
-
 
         {mode === "register" && (
 
@@ -2171,7 +2342,6 @@ export default function App() {
 
       <Routes>
 
-
         {/* =========================
             PUBLIC ROUTES
         ========================= */}
@@ -2216,7 +2386,6 @@ export default function App() {
             </ProtectedRoute>
           }
         />
-
 
       </Routes>
 

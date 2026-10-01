@@ -8,12 +8,22 @@ const jwt = require("jsonwebtoken");
 const { ethers } = require("ethers");
 
 require("dotenv").config({
-  path: path.join(__dirname, ".env")
+  path: path.join(__dirname, ".env"),
 });
 
 const app = express();
 
-app.use(cors());
+/* =====================================================
+   BASIC CONFIG
+===================================================== */
+
+app.use(
+  cors({
+    origin: true,
+    credentials: true,
+  })
+);
+
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
@@ -43,7 +53,7 @@ const usersFile =
 
 
 /* =====================================================
-   WARNINGS
+   CONFIG WARNINGS
 ===================================================== */
 
 if (
@@ -51,7 +61,7 @@ if (
   PRIVATE_KEY.includes("PASTE_")
 ) {
   console.warn(
-    "WARNING: backend/.env PRIVATE_KEY is not configured."
+    "WARNING: PRIVATE_KEY is not configured."
   );
 }
 
@@ -60,13 +70,13 @@ if (
   CONTRACT_ADDRESS.includes("PASTE_")
 ) {
   console.warn(
-    "WARNING: backend/.env CONTRACT_ADDRESS is not configured."
+    "WARNING: CONTRACT_ADDRESS is not configured."
   );
 }
 
 if (
   !process.env.JWT_SECRET ||
-  process.env.JWT_SECRET.includes("change_this")
+  process.env.JWT_SECRET.includes("dev_secret")
 ) {
   console.warn(
     "WARNING: JWT_SECRET is using the development fallback."
@@ -91,7 +101,9 @@ const wallet =
     : null;
 
 const contract =
-  wallet && CONTRACT_ADDRESS
+  wallet &&
+  CONTRACT_ADDRESS &&
+  !CONTRACT_ADDRESS.includes("PASTE_")
     ? new ethers.Contract(
         CONTRACT_ADDRESS,
         ABI,
@@ -107,6 +119,11 @@ const contract =
 function readProducts() {
   try {
     if (!fs.existsSync(dataFile)) {
+      fs.writeFileSync(
+        dataFile,
+        "[]",
+        "utf8"
+      );
       return [];
     }
 
@@ -120,18 +137,13 @@ function readProducts() {
       return [];
     }
 
-    const parsed =
-      JSON.parse(data);
-
-    return Array.isArray(parsed)
-      ? parsed
-      : [];
+    return JSON.parse(data);
 
   } catch (error) {
 
     console.error(
       "Error reading products.json:",
-      error
+      error.message
     );
 
     return [];
@@ -140,21 +152,32 @@ function readProducts() {
 
 
 function writeProducts(products) {
+
   fs.writeFileSync(
     dataFile,
     JSON.stringify(
       products,
       null,
       2
-    )
+    ),
+    "utf8"
   );
+
 }
 
 
 function readUsers() {
+
   try {
 
     if (!fs.existsSync(usersFile)) {
+
+      fs.writeFileSync(
+        usersFile,
+        "[]",
+        "utf8"
+      );
+
       return [];
     }
 
@@ -168,18 +191,18 @@ function readUsers() {
       return [];
     }
 
-    const parsed =
+    const users =
       JSON.parse(data);
 
-    return Array.isArray(parsed)
-      ? parsed
+    return Array.isArray(users)
+      ? users
       : [];
 
   } catch (error) {
 
     console.error(
       "Error reading users.json:",
-      error
+      error.message
     );
 
     return [];
@@ -188,14 +211,17 @@ function readUsers() {
 
 
 function writeUsers(users) {
+
   fs.writeFileSync(
     usersFile,
     JSON.stringify(
       users,
       null,
       2
-    )
+    ),
+    "utf8"
   );
+
 }
 
 
@@ -213,10 +239,14 @@ function generateProductId() {
 
 
 /* =====================================================
-   AUTH MIDDLEWARE
+   JWT AUTH MIDDLEWARE
 ===================================================== */
 
-function authenticateToken(req, res, next) {
+function authenticateToken(
+  req,
+  res,
+  next
+) {
 
   const authHeader =
     req.headers.authorization;
@@ -224,12 +254,9 @@ function authenticateToken(req, res, next) {
   if (!authHeader) {
 
     return res.status(401).json({
-
       success: false,
-
       message:
-        "Login required. Please login to continue."
-
+        "Login required. Please login to continue.",
     });
 
   }
@@ -244,12 +271,9 @@ function authenticateToken(req, res, next) {
   ) {
 
     return res.status(401).json({
-
       success: false,
-
       message:
-        "Invalid authorization format."
-
+        "Invalid authorization format.",
     });
 
   }
@@ -278,12 +302,9 @@ function authenticateToken(req, res, next) {
     );
 
     return res.status(401).json({
-
       success: false,
-
       message:
-        "Your login session has expired. Please login again."
-
+        "Your login session has expired. Please login again.",
     });
 
   }
@@ -293,22 +314,19 @@ function authenticateToken(req, res, next) {
 
 /* =====================================================
    HEALTH
-   PUBLIC
 ===================================================== */
 
 app.get(
   "/api/health",
   async (req, res) => {
 
-    let blockchain =
-      false;
+    let blockchain = false;
 
     try {
 
       await provider.getBlockNumber();
 
-      blockchain =
-        true;
+      blockchain = true;
 
     } catch (error) {
 
@@ -328,7 +346,7 @@ app.get(
       blockchain,
 
       contractAddress:
-        CONTRACT_ADDRESS || null
+        CONTRACT_ADDRESS || null,
 
     });
 
@@ -338,7 +356,6 @@ app.get(
 
 /* =====================================================
    AUTH - REGISTER
-   PUBLIC
 ===================================================== */
 
 app.post(
@@ -350,60 +367,56 @@ app.post(
       const {
         name,
         email,
-        password
+        password,
       } = req.body;
 
       if (
-        typeof name !== "string" ||
-        typeof email !== "string" ||
-        typeof password !== "string"
+        !name ||
+        !email ||
+        !password
       ) {
 
         return res.status(400).json({
-
           success: false,
-
           message:
-            "Name, email and password are required."
-
+            "Name, email and password are required.",
         });
 
       }
 
       const cleanName =
-        name.trim();
+        String(name).trim();
 
       const normalizedEmail =
-        email
+        String(email)
           .trim()
           .toLowerCase();
+
+      const cleanPassword =
+        String(password);
 
       if (
         !cleanName ||
         !normalizedEmail ||
-        !password
+        !cleanPassword
       ) {
 
         return res.status(400).json({
-
           success: false,
-
           message:
-            "Name, email and password are required."
-
+            "Please provide valid account details.",
         });
 
       }
 
-      if (password.length < 6) {
+      if (
+        cleanPassword.length < 6
+      ) {
 
         return res.status(400).json({
-
           success: false,
-
           message:
-            "Password must be at least 6 characters."
-
+            "Password must be at least 6 characters.",
         });
 
       }
@@ -413,30 +426,32 @@ app.post(
 
       const existingUser =
         users.find(
-          user =>
-            typeof user.email === "string" &&
-            user.email
+          (user) =>
+            String(
+              user.email || ""
+            )
               .trim()
               .toLowerCase() ===
-              normalizedEmail
+            normalizedEmail
         );
 
       if (existingUser) {
 
         return res.status(409).json({
-
           success: false,
-
           message:
-            "An account with this email already exists."
-
+            "An account with this email already exists.",
         });
 
       }
 
+      /* -----------------------------------------------
+         HASH PASSWORD
+      ------------------------------------------------ */
+
       const hashedPassword =
         await bcrypt.hash(
-          password,
+          cleanPassword,
           10
         );
 
@@ -455,7 +470,7 @@ app.post(
           hashedPassword,
 
         createdAt:
-          new Date().toISOString()
+          new Date().toISOString(),
 
       };
 
@@ -472,14 +487,14 @@ app.post(
         success: true,
 
         message:
-          "Account created successfully."
+          "Account created successfully.",
 
       });
 
     } catch (error) {
 
       console.error(
-        "Registration error:",
+        "REGISTER ERROR:",
         error
       );
 
@@ -488,7 +503,7 @@ app.post(
         success: false,
 
         message:
-          "Account creation failed."
+          "Account creation failed.",
 
       });
 
@@ -500,7 +515,6 @@ app.post(
 
 /* =====================================================
    AUTH - LOGIN
-   PUBLIC
 ===================================================== */
 
 app.post(
@@ -511,32 +525,15 @@ app.post(
 
       const {
         email,
-        password
+        password,
       } = req.body;
 
-      if (
-        typeof email !== "string" ||
-        typeof password !== "string"
-      ) {
-
-        return res.status(400).json({
-
-          success: false,
-
-          message:
-            "Email and password are required."
-
-        });
-
-      }
-
-      const normalizedEmail =
-        email
-          .trim()
-          .toLowerCase();
+      /* -----------------------------------------------
+         VALIDATE INPUT
+      ------------------------------------------------ */
 
       if (
-        !normalizedEmail ||
+        !email ||
         !password
       ) {
 
@@ -545,33 +542,42 @@ app.post(
           success: false,
 
           message:
-            "Email and password are required."
+            "Email and password are required.",
 
         });
 
       }
+
+      const normalizedEmail =
+        String(email)
+          .trim()
+          .toLowerCase();
+
+      const enteredPassword =
+        String(password);
+
+      /* -----------------------------------------------
+         LOAD USERS
+      ------------------------------------------------ */
 
       const users =
         readUsers();
 
-      const user =
-        users.find(
-          item =>
-            item &&
-            typeof item.email === "string" &&
-            item.email
+      const userIndex =
+        users.findIndex(
+          (item) =>
+            String(
+              item.email || ""
+            )
               .trim()
               .toLowerCase() ===
-              normalizedEmail
+            normalizedEmail
         );
 
-      /*
-       * User does not exist.
-       */
-      if (!user) {
+      if (userIndex === -1) {
 
         console.log(
-          `Login failed: user not found - ${normalizedEmail}`
+          `Login failed - user not found: ${normalizedEmail}`
         );
 
         return res.status(401).json({
@@ -579,28 +585,31 @@ app.post(
           success: false,
 
           message:
-            "Invalid email or password."
+            "Invalid email or password.",
 
         });
 
       }
 
-      /*
-       * IMPORTANT FIX:
-       *
-       * Never call bcrypt.compare() with an undefined
-       * password hash.
-       */
-      let storedPassword =
-        user.password;
+      const user =
+        users[userIndex];
+
+      /* -----------------------------------------------
+         IMPORTANT PASSWORD SAFETY CHECK
+      ------------------------------------------------ */
+
+      const storedPassword =
+        user.password ||
+        user.passwordHash ||
+        null;
 
       if (
-        typeof storedPassword !== "string" ||
-        !storedPassword.trim()
+        !storedPassword ||
+        typeof storedPassword !== "string"
       ) {
 
         console.error(
-          `Login failed: password hash missing for ${normalizedEmail}`
+          `User ${normalizedEmail} has no valid password hash.`
         );
 
         return res.status(401).json({
@@ -608,18 +617,23 @@ app.post(
           success: false,
 
           message:
-            "This account has an invalid password record. Please create a new account."
+            "This account needs to be recreated. Please create a new account.",
 
         });
 
       }
 
-      let passwordMatch =
-        false;
+      /* -----------------------------------------------
+         CHECK PASSWORD
+      ------------------------------------------------ */
+
+      let passwordMatch = false;
 
       /*
-       * Normal bcrypt password.
-       */
+         Normal case:
+         password is a bcrypt hash.
+      */
+
       if (
         storedPassword.startsWith("$2a$") ||
         storedPassword.startsWith("$2b$") ||
@@ -628,58 +642,43 @@ app.post(
 
         passwordMatch =
           await bcrypt.compare(
-            password,
+            enteredPassword,
             storedPassword
           );
 
       } else {
 
         /*
-         * Legacy password support.
-         *
-         * If an older local users.json contains a
-         * plain-text password, allow one successful
-         * login and immediately convert it to bcrypt.
-         */
-        if (
-          storedPassword === password
-        ) {
+           LEGACY SUPPORT
 
-          passwordMatch =
-            true;
+           If an older version of the application
+           stored the password as plain text,
+           temporarily support it and immediately
+           convert it into a bcrypt hash.
+        */
+
+        passwordMatch =
+          storedPassword ===
+          enteredPassword;
+
+        if (passwordMatch) {
 
           const newHash =
             await bcrypt.hash(
-              password,
+              enteredPassword,
               10
             );
 
-          user.password =
+          users[userIndex].password =
             newHash;
 
-          const userIndex =
-            users.findIndex(
-              item =>
-                item.id === user.id
-            );
+          delete users[userIndex].passwordHash;
 
-          if (userIndex !== -1) {
+          writeUsers(users);
 
-            users[userIndex] =
-              user;
-
-            writeUsers(users);
-
-            console.log(
-              `Migrated legacy password to bcrypt for ${normalizedEmail}`
-            );
-
-          }
-
-        } else {
-
-          passwordMatch =
-            false;
+          console.log(
+            `Migrated legacy password for ${normalizedEmail}`
+          );
 
         }
 
@@ -688,7 +687,7 @@ app.post(
       if (!passwordMatch) {
 
         console.log(
-          `Login failed: incorrect password - ${normalizedEmail}`
+          `Login failed - incorrect password: ${normalizedEmail}`
         );
 
         return res.status(401).json({
@@ -696,15 +695,16 @@ app.post(
           success: false,
 
           message:
-            "Invalid email or password."
+            "Invalid email or password.",
 
         });
 
       }
 
-      /*
-       * Create JWT.
-       */
+      /* -----------------------------------------------
+         CREATE JWT
+      ------------------------------------------------ */
+
       const token =
         jwt.sign(
 
@@ -716,7 +716,7 @@ app.post(
               user.name,
 
             email:
-              user.email
+              user.email,
 
           },
 
@@ -724,7 +724,7 @@ app.post(
 
           {
             expiresIn:
-              "7d"
+              "7d",
           }
 
         );
@@ -732,6 +732,10 @@ app.post(
       console.log(
         `Login successful: ${normalizedEmail}`
       );
+
+      /* -----------------------------------------------
+         RESPONSE
+      ------------------------------------------------ */
 
       return res.json({
 
@@ -751,9 +755,9 @@ app.post(
             user.name,
 
           email:
-            user.email
+            user.email,
 
-        }
+        },
 
       });
 
@@ -769,7 +773,7 @@ app.post(
         success: false,
 
         message:
-          "Login failed."
+          "Login failed.",
 
       });
 
@@ -781,7 +785,6 @@ app.post(
 
 /* =====================================================
    AUTH - CURRENT USER
-   LOGIN REQUIRED
 ===================================================== */
 
 app.get(
@@ -794,7 +797,7 @@ app.get(
       success: true,
 
       user:
-        req.user
+        req.user,
 
     });
 
@@ -804,7 +807,6 @@ app.get(
 
 /* =====================================================
    AUTH - LOGOUT
-   LOGIN REQUIRED
 ===================================================== */
 
 app.post(
@@ -817,7 +819,7 @@ app.post(
       success: true,
 
       message:
-        "Logged out successfully."
+        "Logged out successfully.",
 
     });
 
@@ -844,7 +846,7 @@ app.post(
           success: false,
 
           message:
-            "Blockchain is not configured. Check backend/.env."
+            "Blockchain is not configured. Check backend environment variables.",
 
         });
 
@@ -857,7 +859,7 @@ app.post(
         category,
         batchNumber,
         manufacturingDate,
-        expiryDate
+        expiryDate,
       } = req.body;
 
       if (
@@ -872,7 +874,7 @@ app.post(
           success: false,
 
           message:
-            "Name, brand, manufacturer and batch number are required."
+            "Name, brand, manufacturer and batch number are required.",
 
         });
 
@@ -923,15 +925,18 @@ app.post(
         manufacturer,
 
         category:
-          category || "General",
+          category ||
+          "General",
 
         batchNumber,
 
         manufacturingDate:
-          manufacturingDate || "",
+          manufacturingDate ||
+          "",
 
         expiryDate:
-          expiryDate || "",
+          expiryDate ||
+          "",
 
         transactionHash:
           receipt.hash,
@@ -943,7 +948,7 @@ app.post(
           req.user.email,
 
         createdAt:
-          new Date().toISOString()
+          new Date().toISOString(),
 
       };
 
@@ -958,7 +963,7 @@ app.post(
         `Product registered successfully: ${productId}`
       );
 
-      return res.status(201).json({
+      res.status(201).json({
 
         success: true,
 
@@ -966,7 +971,7 @@ app.post(
           "Product registered on blockchain.",
 
         product:
-          record
+          record,
 
       });
 
@@ -977,14 +982,14 @@ app.post(
         error
       );
 
-      return res.status(500).json({
+      res.status(500).json({
 
         success: false,
 
         message:
           error.shortMessage ||
           error.message ||
-          "Registration failed."
+          "Registration failed.",
 
       });
 
@@ -1012,7 +1017,7 @@ app.get(
           success: false,
 
           message:
-            "Blockchain is not configured."
+            "Blockchain is not configured.",
 
         });
 
@@ -1030,7 +1035,7 @@ app.get(
           success: false,
 
           message:
-            "Product ID is required."
+            "Product ID is required.",
 
         });
 
@@ -1053,7 +1058,7 @@ app.get(
             "NOT_FOUND",
 
           message:
-            "Product was not found on the blockchain."
+            "Product was not found on the blockchain.",
 
         });
 
@@ -1099,11 +1104,11 @@ app.get(
           p.registeredBy,
 
         active:
-          p.active
+          p.active,
 
       };
 
-      return res.json({
+      res.json({
 
         success: true,
 
@@ -1120,25 +1125,25 @@ app.get(
             ? "This product exists in the blockchain registry."
             : "This product was registered but has been revoked.",
 
-        product
+        product,
 
       });
 
     } catch (error) {
 
       console.error(
-        "PRODUCT VERIFICATION ERROR:",
+        "VERIFY ERROR:",
         error
       );
 
-      return res.status(500).json({
+      res.status(500).json({
 
         success: false,
 
         message:
           error.shortMessage ||
           error.message ||
-          "Verification failed."
+          "Verification failed.",
 
       });
 
@@ -1163,30 +1168,30 @@ app.get(
       const products =
         readProducts();
 
-      return res.json({
+      res.json({
 
         success: true,
 
         products,
 
         count:
-          products.length
+          products.length,
 
       });
 
     } catch (error) {
 
       console.error(
-        "PRODUCT REGISTRY ERROR:",
+        "PRODUCTS ERROR:",
         error
       );
 
-      return res.status(500).json({
+      res.status(500).json({
 
         success: false,
 
         message:
-          "Unable to load product registry."
+          "Unable to load product registry.",
 
       });
 
@@ -1198,11 +1203,12 @@ app.get(
 
 /* =====================================================
    STATS
-   PUBLIC
+   LOGIN REQUIRED
 ===================================================== */
 
 app.get(
   "/api/stats",
+  authenticateToken,
   (req, res) => {
 
     try {
@@ -1214,7 +1220,7 @@ app.get(
         new Set(
           products
             .map(
-              p => p.brand
+              (p) => p.brand
             )
             .filter(Boolean)
         ).size;
@@ -1223,12 +1229,12 @@ app.get(
         new Set(
           products
             .map(
-              p => p.manufacturer
+              (p) => p.manufacturer
             )
             .filter(Boolean)
         ).size;
 
-      return res.json({
+      res.json({
 
         success: true,
 
@@ -1240,7 +1246,7 @@ app.get(
         manufacturers,
 
         verifiedOnChain:
-          products.length
+          products.length,
 
       });
 
@@ -1251,12 +1257,12 @@ app.get(
         error
       );
 
-      return res.status(500).json({
+      res.status(500).json({
 
         success: false,
 
         message:
-          "Unable to load statistics."
+          "Unable to load statistics.",
 
       });
 
@@ -1278,32 +1284,7 @@ app.use(
       success: false,
 
       message:
-        "API endpoint not found."
-
-    });
-
-  }
-);
-
-
-/* =====================================================
-   GLOBAL ERROR HANDLER
-===================================================== */
-
-app.use(
-  (error, req, res, next) => {
-
-    console.error(
-      "GLOBAL SERVER ERROR:",
-      error
-    );
-
-    res.status(500).json({
-
-      success: false,
-
-      message:
-        "Internal server error."
+        "API endpoint not found.",
 
     });
 
@@ -1317,7 +1298,12 @@ app.use(
 
 app.listen(
   PORT,
+  "0.0.0.0",
   () => {
+
+    console.log(
+      "=============================================="
+    );
 
     console.log(
       `API running on port ${PORT}`
@@ -1329,6 +1315,10 @@ app.listen(
 
     console.log(
       `Contract: ${CONTRACT_ADDRESS || "Not configured"}`
+    );
+
+    console.log(
+      "=============================================="
     );
 
   }
