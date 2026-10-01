@@ -11,7 +11,19 @@ require("dotenv").config({
 
 const app = express();
 
-app.use(cors());
+app.use(
+  cors({
+    origin: [
+      "https://frontend-djjn.vercel.app",
+      "http://localhost:5177",
+      "http://localhost:5176",
+      "http://localhost:5173"
+    ],
+    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
+    allowedHeaders: ["Content-Type", "Authorization"],
+    credentials: false
+  })
+);
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
