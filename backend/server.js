@@ -3,6 +3,8 @@ const cors = require("cors");
 const fs = require("fs");
 const path = require("path");
 const crypto = require("crypto");
+const bcrypt = require("bcryptjs");
+const jwt = require("jsonwebtoken");
 const { ethers } = require("ethers");
 
 require("dotenv").config({
@@ -11,19 +13,7 @@ require("dotenv").config({
 
 const app = express();
 
-app.use(
-  cors({
-    origin: [
-      "https://frontend-djjn.vercel.app",
-      "http://localhost:5177",
-      "http://localhost:5176",
-      "http://localhost:5173"
-    ],
-    methods: ["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allowedHeaders: ["Content-Type", "Authorization"],
-    credentials: false
-  })
-);
+app.use(cors());
 app.use(express.json());
 
 const PORT = process.env.PORT || 5000;
@@ -32,10 +22,15 @@ const RPC_URL =
   process.env.RPC_URL ||
   "http://127.0.0.1:8545";
 
-const PRIVATE_KEY = process.env.PRIVATE_KEY;
+const PRIVATE_KEY =
+  process.env.PRIVATE_KEY;
 
 const CONTRACT_ADDRESS =
   process.env.CONTRACT_ADDRESS;
+
+const JWT_SECRET =
+  process.env.JWT_SECRET ||
+  "blockverify_dev_secret_change_this";
 
 const ABI =
   require("./contract.json").abi;
@@ -47,9 +42,32 @@ const usersFile =
   path.join(__dirname, "users.json");
 
 
-/* =================================
+/* =====================================================
+   WARNINGS
+===================================================== */
+
+if (
+  !PRIVATE_KEY ||
+  PRIVATE_KEY.includes("PASTE_")
+) {
+  console.warn(
+    "WARNING: backend/.env PRIVATE_KEY is not configured."
+  );
+}
+
+if (
+  !CONTRACT_ADDRESS ||
+  CONTRACT_ADDRESS.includes("PASTE_")
+) {
+  console.warn(
+    "WARNING: backend/.env CONTRACT_ADDRESS is not configured."
+  );
+}
+
+
+/* =====================================================
    BLOCKCHAIN
-================================= */
+===================================================== */
 
 const provider =
   new ethers.JsonRpcProvider(RPC_URL);
@@ -73,9 +91,9 @@ const contract =
     : null;
 
 
-/* =================================
+/* =====================================================
    FILE HELPERS
-================================= */
+===================================================== */
 
 function readProducts() {
 
@@ -114,13 +132,6 @@ function readUsers() {
 
   try {
 
-    if (!fs.existsSync(usersFile)) {
-      fs.writeFileSync(
-        usersFile,
-        "[]"
-      );
-    }
-
     return JSON.parse(
       fs.readFileSync(
         usersFile,
@@ -150,10 +161,6 @@ function writeUsers(users) {
 }
 
 
-/* =================================
-   PRODUCT ID
-================================= */
-
 function generateProductId() {
 
   return (
@@ -167,116 +174,110 @@ function generateProductId() {
 }
 
 
-/* =================================
-   PASSWORD HASHING
-================================= */
+/* =====================================================
+   AUTH MIDDLEWARE
+===================================================== */
 
-function hashPassword(password) {
+function authenticateToken(req, res, next) {
 
-  const salt =
-    crypto
-      .randomBytes(16)
-      .toString("hex");
-
-  const hash =
-    crypto
-      .scryptSync(
-        password,
-        salt,
-        64
-      )
-      .toString("hex");
-
-  return {
-    salt,
-    hash
-  };
-
-}
-
-
-function verifyPassword(
-  password,
-  salt,
-  storedHash
-) {
-
-  const hash =
-    crypto
-      .scryptSync(
-        password,
-        salt,
-        64
-      )
-      .toString("hex");
-
-  return crypto.timingSafeEqual(
-    Buffer.from(hash, "hex"),
-    Buffer.from(storedHash, "hex")
-  );
-
-}
-
-
-/* =================================
-   TOKEN HELPERS
-================================= */
-
-function generateToken() {
-
-  return crypto
-    .randomBytes(32)
-    .toString("hex");
-
-}
-
-
-/*
-  Demo session storage.
-
-  This is intentionally simple for
-  the college project.
-*/
-
-const sessions = new Map();
-
-
-function getUserFromToken(req) {
-
-  const auth =
+  const authHeader =
     req.headers.authorization;
 
-  if (!auth) {
-    return null;
+  if (!authHeader) {
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Login required. Please login to continue."
+    });
+
   }
 
   const parts =
-    auth.split(" ");
+    authHeader.split(" ");
 
   if (
     parts.length !== 2 ||
     parts[0] !== "Bearer"
   ) {
-    return null;
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Invalid authorization format."
+    });
+
   }
 
   const token = parts[1];
 
-  const user =
-    sessions.get(token);
+  try {
 
-  return user || null;
+    const decoded =
+      jwt.verify(
+        token,
+        JWT_SECRET
+      );
+
+    req.user = decoded;
+
+    next();
+
+  } catch (error) {
+
+    return res.status(401).json({
+      success: false,
+      message:
+        "Your login session has expired. Please login again."
+    });
+
+  }
 
 }
 
 
-/* =================================
-   AUTH REGISTER
-================================= */
+/* =====================================================
+   HEALTH
+===================================================== */
+
+app.get(
+  "/api/health",
+  async (req, res) => {
+
+    let blockchain = false;
+
+    try {
+
+      await provider.getBlockNumber();
+
+      blockchain = true;
+
+    } catch {}
+
+    res.json({
+
+      success: true,
+
+      server: true,
+
+      blockchain,
+
+      contractAddress:
+        CONTRACT_ADDRESS || null
+
+    });
+
+  }
+);
+
+
+/* =====================================================
+   AUTH - REGISTER
+===================================================== */
 
 app.post(
   "/api/auth/register",
-  (req, res) => {
+  async (req, res) => {
 
     try {
 
@@ -286,7 +287,6 @@ app.post(
         password
       } = req.body;
 
-
       if (
         !name ||
         !email ||
@@ -294,40 +294,30 @@ app.post(
       ) {
 
         return res.status(400).json({
-
           success: false,
-
           message:
             "Name, email and password are required."
-
         });
 
       }
-
 
       if (password.length < 6) {
 
         return res.status(400).json({
-
           success: false,
-
           message:
             "Password must be at least 6 characters."
-
         });
 
       }
 
+      const users =
+        readUsers();
 
       const normalizedEmail =
         email
           .trim()
           .toLowerCase();
-
-
-      const users =
-        readUsers();
-
 
       const existingUser =
         users.find(
@@ -336,32 +326,26 @@ app.post(
             normalizedEmail
         );
 
-
       if (existingUser) {
 
         return res.status(409).json({
-
           success: false,
-
           message:
             "An account with this email already exists."
-
         });
 
       }
 
-
-      const {
-        salt,
-        hash
-      } = hashPassword(password);
-
+      const hashedPassword =
+        await bcrypt.hash(
+          password,
+          10
+        );
 
       const user = {
 
         id:
-          crypto
-            .randomUUID(),
+          crypto.randomUUID(),
 
         name:
           name.trim(),
@@ -369,38 +353,24 @@ app.post(
         email:
           normalizedEmail,
 
-        salt,
-
-        passwordHash:
-          hash,
+        password:
+          hashedPassword,
 
         createdAt:
           new Date().toISOString()
 
       };
 
-
       users.push(user);
 
       writeUsers(users);
-
 
       res.status(201).json({
 
         success: true,
 
         message:
-          "Account created successfully.",
-
-        user: {
-
-          id: user.id,
-
-          name: user.name,
-
-          email: user.email
-
-        }
+          "Account created successfully."
 
       });
 
@@ -413,7 +383,7 @@ app.post(
         success: false,
 
         message:
-          "Registration failed."
+          "Account creation failed."
 
       });
 
@@ -423,13 +393,13 @@ app.post(
 );
 
 
-/* =================================
-   AUTH LOGIN
-================================= */
+/* =====================================================
+   AUTH - LOGIN
+===================================================== */
 
 app.post(
   "/api/auth/login",
-  (req, res) => {
+  async (req, res) => {
 
     try {
 
@@ -438,33 +408,26 @@ app.post(
         password
       } = req.body;
 
-
       if (
         !email ||
         !password
       ) {
 
         return res.status(400).json({
-
           success: false,
-
           message:
             "Email and password are required."
-
         });
 
       }
 
+      const users =
+        readUsers();
 
       const normalizedEmail =
         email
           .trim()
           .toLowerCase();
-
-
-      const users =
-        readUsers();
-
 
       const user =
         users.find(
@@ -473,56 +436,44 @@ app.post(
             normalizedEmail
         );
 
-
       if (!user) {
 
         return res.status(401).json({
-
           success: false,
-
           message:
             "Invalid email or password."
-
         });
 
       }
 
-
-      const valid =
-        verifyPassword(
+      const passwordMatch =
+        await bcrypt.compare(
           password,
-          user.salt,
-          user.passwordHash
+          user.password
         );
 
-
-      if (!valid) {
+      if (!passwordMatch) {
 
         return res.status(401).json({
-
           success: false,
-
           message:
             "Invalid email or password."
-
         });
 
       }
 
-
       const token =
-        generateToken();
-
-
-      sessions.set(
-        token,
-        {
-          id: user.id,
-          name: user.name,
-          email: user.email
-        }
-      );
-
+        jwt.sign(
+          {
+            id: user.id,
+            name: user.name,
+            email: user.email
+          },
+          JWT_SECRET,
+          {
+            expiresIn: "7d"
+          }
+        );
 
       res.json({
 
@@ -564,37 +515,20 @@ app.post(
 );
 
 
-/* =================================
-   CURRENT USER
-================================= */
+/* =====================================================
+   AUTH - CURRENT USER
+===================================================== */
 
 app.get(
   "/api/auth/me",
+  authenticateToken,
   (req, res) => {
-
-    const user =
-      getUserFromToken(req);
-
-
-    if (!user) {
-
-      return res.status(401).json({
-
-        success: false,
-
-        message:
-          "Not logged in."
-
-      });
-
-    }
-
 
     res.json({
 
       success: true,
 
-      user
+      user: req.user
 
     });
 
@@ -602,36 +536,14 @@ app.get(
 );
 
 
-/* =================================
-   LOGOUT
-================================= */
+/* =====================================================
+   AUTH - LOGOUT
+===================================================== */
 
 app.post(
   "/api/auth/logout",
+  authenticateToken,
   (req, res) => {
-
-    const auth =
-      req.headers.authorization;
-
-
-    if (auth) {
-
-      const parts =
-        auth.split(" ");
-
-
-      if (
-        parts.length === 2
-      ) {
-
-        sessions.delete(
-          parts[1]
-        );
-
-      }
-
-    }
-
 
     res.json({
 
@@ -646,48 +558,14 @@ app.post(
 );
 
 
-/* =================================
-   HEALTH
-================================= */
-
-app.get(
-  "/api/health",
-  async (req, res) => {
-
-    let blockchain = false;
-
-    try {
-
-      await provider.getBlockNumber();
-
-      blockchain = true;
-
-    } catch {}
-
-
-    res.json({
-
-      success: true,
-
-      server: true,
-
-      blockchain,
-
-      contractAddress:
-        CONTRACT_ADDRESS || null
-
-    });
-
-  }
-);
-
-
-/* =================================
+/* =====================================================
    REGISTER PRODUCT
-================================= */
+   LOGIN REQUIRED
+===================================================== */
 
 app.post(
   "/api/products/register",
+  authenticateToken,
   async (req, res) => {
 
     try {
@@ -705,25 +583,15 @@ app.post(
 
       }
 
-
       const {
-
         name,
-
         brand,
-
         manufacturer,
-
         category,
-
         batchNumber,
-
         manufacturingDate,
-
         expiryDate
-
       } = req.body;
-
 
       if (
         !name ||
@@ -743,10 +611,8 @@ app.post(
 
       }
 
-
       const productId =
         generateProductId();
-
 
       const tx =
         await contract.registerProduct(
@@ -759,20 +625,21 @@ app.post(
 
           manufacturer,
 
-          category || "General",
+          category ||
+            "General",
 
           batchNumber,
 
-          manufacturingDate || "",
+          manufacturingDate ||
+            "",
 
-          expiryDate || ""
+          expiryDate ||
+            ""
 
         );
 
-
       const receipt =
         await tx.wait();
-
 
       const record = {
 
@@ -801,21 +668,20 @@ app.post(
         blockNumber:
           receipt.blockNumber,
 
+        registeredBy:
+          req.user.email,
+
         createdAt:
           new Date().toISOString()
 
       };
 
-
       const products =
         readProducts();
 
-
       products.push(record);
 
-
       writeProducts(products);
-
 
       res.status(201).json({
 
@@ -849,9 +715,10 @@ app.post(
 );
 
 
-/* =================================
+/* =====================================================
    VERIFY PRODUCT
-================================= */
+   PUBLIC
+===================================================== */
 
 app.get(
   "/api/products/verify/:productId",
@@ -872,16 +739,13 @@ app.get(
 
       }
 
-
       const productId =
         req.params.productId.trim();
-
 
       const exists =
         await contract.productExists(
           productId
         );
-
 
       if (!exists) {
 
@@ -891,8 +755,7 @@ app.get(
 
           authentic: false,
 
-          status:
-            "NOT_FOUND",
+          status: "NOT_FOUND",
 
           message:
             "Product was not found on the blockchain."
@@ -901,12 +764,10 @@ app.get(
 
       }
 
-
       const p =
         await contract.getProduct(
           productId
         );
-
 
       const product = {
 
@@ -945,7 +806,6 @@ app.get(
 
       };
 
-
       res.json({
 
         success: true,
@@ -960,9 +820,7 @@ app.get(
 
         message:
           product.active
-
             ? "This product exists in the blockchain registry."
-
             : "This product was registered but has been revoked.",
 
         product
@@ -990,17 +848,18 @@ app.get(
 );
 
 
-/* =================================
-   PRODUCTS
-================================= */
+/* =====================================================
+   PRODUCT REGISTRY
+   LOGIN REQUIRED
+===================================================== */
 
 app.get(
   "/api/products",
+  authenticateToken,
   (req, res) => {
 
     const products =
       readProducts();
-
 
     res.json({
 
@@ -1017,17 +876,18 @@ app.get(
 );
 
 
-/* =================================
+/* =====================================================
    STATS
-================================= */
+   LOGIN REQUIRED
+===================================================== */
 
 app.get(
   "/api/stats",
+  authenticateToken,
   (req, res) => {
 
     const products =
       readProducts();
-
 
     const brands =
       new Set(
@@ -1036,14 +896,12 @@ app.get(
         )
       ).size;
 
-
     const manufacturers =
       new Set(
         products.map(
           p => p.manufacturer
         )
       ).size;
-
 
     res.json({
 
@@ -1065,9 +923,9 @@ app.get(
 );
 
 
-/* =================================
-   START SERVER
-================================= */
+/* =====================================================
+   SERVER
+===================================================== */
 
 app.listen(
   PORT,

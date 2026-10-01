@@ -1,10 +1,12 @@
 import React, { useEffect, useState } from "react";
+
 import {
   Link,
   Route,
   Routes,
   useLocation,
-  useSearchParams
+  useSearchParams,
+  Navigate
 } from "react-router-dom";
 
 import {
@@ -25,13 +27,17 @@ import {
 } from "lucide-react";
 
 import { Html5QrcodeScanner } from "html5-qrcode";
+import { QRCodeCanvas } from "qrcode.react";
+
 import { api } from "./api";
 
-/* =========================
+
+/* =========================================================
    LAYOUT
-========================= */
+========================================================= */
 
 function Layout({ children }) {
+
   const location = useLocation();
 
   const [open, setOpen] = useState(false);
@@ -49,16 +55,24 @@ function Layout({ children }) {
     }
   });
 
+
   useEffect(() => {
-    document.body.classList.toggle("dark-mode", darkMode);
+
+    document.body.classList.toggle(
+      "dark-mode",
+      darkMode
+    );
 
     localStorage.setItem(
       "blockverify-theme",
       darkMode ? "dark" : "light"
     );
+
   }, [darkMode]);
 
+
   function logout() {
+
     localStorage.removeItem("blockverify_token");
     localStorage.removeItem("blockverify_user");
 
@@ -68,6 +82,7 @@ function Layout({ children }) {
     window.location.href = "/";
   }
 
+
   const links = [
     ["/", "Dashboard", LayoutDashboard],
     ["/verify", "Verify Product", Search],
@@ -75,7 +90,9 @@ function Layout({ children }) {
     ["/products", "Product Registry", Database]
   ];
 
+
   return (
+
     <div className="app-shell">
 
       <header className="topbar">
@@ -85,6 +102,7 @@ function Layout({ children }) {
           to="/"
           onClick={() => setOpen(false)}
         >
+
           <span className="brand-icon">
             <ShieldCheck size={23} />
           </span>
@@ -92,17 +110,23 @@ function Layout({ children }) {
           <span>
             Block<span>Verify</span>
           </span>
+
         </Link>
+
 
         <button
           className="menu-btn"
           type="button"
           onClick={() => setOpen(!open)}
         >
+
           {open ? <X /> : <Menu />}
+
         </button>
 
+
         <nav className={open ? "nav open" : "nav"}>
+
 
           <button
             className="theme-toggle"
@@ -114,10 +138,14 @@ function Layout({ children }) {
                 : "Switch to dark mode"
             }
           >
+
             {darkMode ? "☀️" : "🌙"}
+
           </button>
 
+
           {links.map(([to, label, Icon]) => (
+
             <Link
               key={to}
               className={
@@ -128,28 +156,45 @@ function Layout({ children }) {
               to={to}
               onClick={() => setOpen(false)}
             >
+
               <Icon size={17} />
+
               {label}
+
             </Link>
+
           ))}
 
+
           {user ? (
+
             <>
+
               <span className="user-name">
+
                 <User size={17} />
+
                 {user.name}
+
               </span>
+
 
               <button
                 className="logout-btn"
                 type="button"
                 onClick={logout}
               >
+
                 <LogOut size={17} />
+
                 Logout
+
               </button>
+
             </>
+
           ) : (
+
             <Link
               className={
                 location.pathname === "/auth"
@@ -159,36 +204,54 @@ function Layout({ children }) {
               to="/auth"
               onClick={() => setOpen(false)}
             >
+
               <LogIn size={17} />
+
               Login
+
             </Link>
+
           )}
 
         </nav>
+
       </header>
 
+
       <main>
+
         {children}
+
       </main>
 
+
       <footer>
+
         <span>BlockVerify</span>
+
         {" · "}
+
         Blockchain-based product authenticity demo
+
       </footer>
 
     </div>
+
   );
 }
 
-/* =========================
+
+
+/* =========================================================
    DASHBOARD
-========================= */
+========================================================= */
 
 function Dashboard() {
 
   const [stats, setStats] = useState(null);
+
   const [health, setHealth] = useState(null);
+
 
   useEffect(() => {
 
@@ -197,14 +260,19 @@ function Dashboard() {
       api.health()
     ])
       .then(([statsData, healthData]) => {
+
         setStats(statsData);
+
         setHealth(healthData);
+
       })
       .catch(console.error);
 
   }, []);
 
+
   return (
+
     <section className="container">
 
       <div className="hero">
@@ -212,21 +280,33 @@ function Dashboard() {
         <div>
 
           <div className="eyebrow">
+
             <Blocks size={16} />
+
             BLOCKCHAIN AUTHENTICITY
+
           </div>
 
+
           <h1>
+
             Detect fake products
+
             <br />
+
             with <span>blockchain.</span>
+
           </h1>
 
+
           <p>
+
             Register genuine products on an immutable
             blockchain ledger and verify them instantly
             using a unique product code.
+
           </p>
+
 
           <div className="hero-actions">
 
@@ -234,34 +314,53 @@ function Dashboard() {
               className="btn primary"
               to="/verify"
             >
+
               <Search size={18} />
+
               Verify a Product
+
             </Link>
+
 
             <Link
               className="btn secondary"
               to="/register"
             >
+
               <PlusCircle size={18} />
+
               Register Product
+
             </Link>
 
           </div>
 
         </div>
 
+
         <div className="hero-card">
 
           <div className="chain-orb">
+
             <ShieldCheck size={54} />
+
           </div>
 
-          <h3>Trust layer</h3>
+
+          <h3>
+
+            Trust layer
+
+          </h3>
+
 
           <p>
+
             Product identity is recorded on-chain so
             the verification record cannot be silently changed.
+
           </p>
+
 
           <div className="chain-status">
 
@@ -283,6 +382,7 @@ function Dashboard() {
 
       </div>
 
+
       <div className="stats-grid">
 
         <Stat
@@ -291,11 +391,13 @@ function Dashboard() {
           value={stats?.totalProducts ?? "—"}
         />
 
+
         <Stat
           icon={<Database />}
           label="Brands"
           value={stats?.brands ?? "—"}
         />
+
 
         <Stat
           icon={<ShieldCheck />}
@@ -305,11 +407,17 @@ function Dashboard() {
 
       </div>
 
+
       <div className="info-grid">
 
         <div className="panel">
 
-          <h2>How it works</h2>
+          <h2>
+
+            How it works
+
+          </h2>
+
 
           <div className="steps">
 
@@ -319,11 +427,13 @@ function Dashboard() {
               text="Product identity and batch details are sent to the smart contract."
             />
 
+
             <Step
               n="02"
               title="Blockchain creates proof"
               text="The network stores the registration and transaction hash."
             />
+
 
             <Step
               n="03"
@@ -335,9 +445,15 @@ function Dashboard() {
 
         </div>
 
+
         <div className="panel accent-panel">
 
-          <h2>Why blockchain?</h2>
+          <h2>
+
+            Why blockchain?
+
+          </h2>
+
 
           <ul className="clean-list">
 
@@ -368,98 +484,160 @@ function Dashboard() {
       </div>
 
     </section>
+
   );
 }
 
-/* =========================
+
+
+/* =========================================================
    STAT
-========================= */
+========================================================= */
 
 function Stat({ icon, label, value }) {
 
   return (
+
     <div className="stat-card">
 
       <div className="stat-icon">
+
         {icon}
+
       </div>
 
+
       <div>
-        <strong>{value}</strong>
-        <span>{label}</span>
+
+        <strong>
+
+          {value}
+
+        </strong>
+
+        <span>
+
+          {label}
+
+        </span>
+
       </div>
 
     </div>
+
   );
 }
 
-/* =========================
+
+
+/* =========================================================
    STEP
-========================= */
+========================================================= */
 
 function Step({ n, title, text }) {
 
   return (
+
     <div className="step">
 
-      <b>{n}</b>
+      <b>
+
+        {n}
+
+      </b>
+
 
       <div>
-        <h3>{title}</h3>
-        <p>{text}</p>
+
+        <h3>
+
+          {title}
+
+        </h3>
+
+        <p>
+
+          {text}
+
+        </p>
+
       </div>
 
     </div>
+
   );
 }
 
-/* =========================
-   VERIFY
-========================= */
+
+
+/* =========================================================
+   VERIFY PRODUCT
+========================================================= */
 
 function Verify() {
 
   const [searchParams] = useSearchParams();
 
+
   const [id, setId] = useState(
     searchParams.get("product") || ""
   );
 
+
   const [result, setResult] = useState(null);
+
   const [loading, setLoading] = useState(false);
+
   const [scanning, setScanning] = useState(false);
+
 
   async function verifyProduct(productId) {
 
-    const cleanId = String(productId || "").trim();
+    const cleanId =
+      String(productId || "").trim();
+
 
     if (!cleanId) {
 
       setResult({
+
         success: false,
+
         status: "ERROR",
+
         message: "Please enter a product ID."
+
       });
 
       return;
+
     }
 
+
     setLoading(true);
+
     setResult(null);
+
 
     try {
 
-      const data = await api.verify(cleanId);
+      const data =
+        await api.verify(cleanId);
 
       setResult(data);
 
     } catch (error) {
 
       setResult({
+
         success: false,
+
         status: "ERROR",
+
         message:
-          error.message || "Verification failed."
+          error.message ||
+          "Verification failed."
+
       });
 
     } finally {
@@ -467,14 +645,18 @@ function Verify() {
       setLoading(false);
 
     }
+
   }
+
 
   async function submit(event) {
 
     event.preventDefault();
 
     await verifyProduct(id);
+
   }
+
 
   useEffect(() => {
 
@@ -482,24 +664,30 @@ function Verify() {
       return;
     }
 
+
     let scanner = null;
+
     let active = true;
+
 
     async function startScanner() {
 
       try {
 
-        scanner = new Html5QrcodeScanner(
-          "qr-reader",
-          {
-            fps: 10,
-            qrbox: {
-              width: 250,
-              height: 250
-            }
-          },
-          false
-        );
+        scanner =
+          new Html5QrcodeScanner(
+            "qr-reader",
+            {
+              fps: 10,
+
+              qrbox: {
+                width: 250,
+                height: 250
+              }
+            },
+            false
+          );
+
 
         scanner.render(
 
@@ -509,31 +697,43 @@ function Verify() {
               return;
             }
 
+
             const decoded =
               String(decodedText).trim();
+
 
             console.log(
               "QR Code detected:",
               decoded
             );
 
+
             setId(decoded);
+
             setScanning(false);
 
+
             try {
+
               await scanner.clear();
+
             } catch (error) {
+
               console.log(
                 "Scanner cleanup:",
                 error
               );
+
             }
 
+
             await verifyProduct(decoded);
+
           },
 
+
           () => {
-            // Normal QR scanning messages are ignored.
+            // Ignore normal scanner messages.
           }
 
         );
@@ -545,58 +745,86 @@ function Verify() {
           error
         );
 
+
         if (active) {
 
           setScanning(false);
 
+
           setResult({
+
             success: false,
+
             status: "ERROR",
+
             message:
               "Unable to start camera scanner. Please allow camera access and try again."
+
           });
 
         }
+
       }
+
     }
 
+
     startScanner();
+
 
     return () => {
 
       active = false;
 
+
       if (scanner) {
-        scanner.clear().catch(() => {});
+
+        scanner
+          .clear()
+          .catch(() => {});
+
       }
 
     };
 
   }, [scanning]);
 
+
   const authentic =
     result?.status === "AUTHENTIC";
 
+
   return (
+
     <section className="container narrow">
 
       <div className="page-heading">
 
         <div className="eyebrow">
+
           <Search size={16} />
+
           PRODUCT VERIFICATION
+
         </div>
 
+
         <h1>
+
           Is your product genuine?
+
         </h1>
 
+
         <p>
+
           Enter the unique product ID printed
           on the package or scan the QR code.
+
         </p>
 
       </div>
+
 
       <form
         className="verify-box"
@@ -604,8 +832,11 @@ function Verify() {
       >
 
         <label>
+
           Product ID
+
         </label>
+
 
         <div className="input-row">
 
@@ -617,19 +848,23 @@ function Verify() {
             placeholder="Example: FP-A1B2C3D4E5"
           />
 
+
           <button
             className="btn primary"
             type="submit"
             disabled={loading}
           >
+
             {loading
               ? "Checking..."
               : "Verify"}
+
           </button>
 
         </div>
 
       </form>
+
 
       <div className="qr-section">
 
@@ -640,7 +875,9 @@ function Verify() {
             type="button"
             onClick={() => setScanning(true)}
           >
+
             📷 Scan QR Code
+
           </button>
 
         ) : (
@@ -648,22 +885,31 @@ function Verify() {
           <div className="qr-scanner-box">
 
             <h3>
+
               Scan Product QR Code
+
             </h3>
 
+
             <p>
+
               Allow camera access and place
               the QR code inside the scanning box.
+
             </p>
 
+
             <div id="qr-reader"></div>
+
 
             <button
               className="btn secondary"
               type="button"
               onClick={() => setScanning(false)}
             >
+
               Stop Scanner
+
             </button>
 
           </div>
@@ -671,6 +917,7 @@ function Verify() {
         )}
 
       </div>
+
 
       {result && (
 
@@ -690,46 +937,62 @@ function Verify() {
               <AlertTriangle size={48} />
             )}
 
+
             <div>
 
               <div className="result-status">
+
                 {result.status || "RESULT"}
+
               </div>
 
+
               <p>
+
                 {result.message}
+
               </p>
 
             </div>
 
           </div>
 
+
           {result.product && (
+
             <ProductDetails
               product={result.product}
             />
+
           )}
 
         </div>
 
       )}
 
+
       <div className="tip">
 
         <ShieldCheck size={22} />
 
+
         <div>
 
           <b>
+
             Verification tip
+
           </b>
 
+
           <p>
+
             A genuine product must have a
             matching record in the blockchain
             registry. A product code alone is
             not proof unless the blockchain
             record matches.
+
           </p>
 
         </div>
@@ -737,12 +1000,15 @@ function Verify() {
       </div>
 
     </section>
+
   );
 }
 
-/* =========================
+
+
+/* =========================================================
    PRODUCT DETAILS
-========================= */
+========================================================= */
 
 function ProductDetails({ product }) {
 
@@ -775,7 +1041,9 @@ function ProductDetails({ product }) {
 
   ];
 
+
   return (
+
     <div className="details">
 
       {rows.map(([label, value]) => (
@@ -785,44 +1053,66 @@ function ProductDetails({ product }) {
           key={label}
         >
 
-          <span>{label}</span>
+          <span>
 
-          <strong>{value}</strong>
+            {label}
+
+          </span>
+
+
+          <strong>
+
+            {value}
+
+          </strong>
 
         </div>
 
       ))}
 
     </div>
+
   );
 }
 
-/* =========================
-   REGISTER
-========================= */
+
+
+/* =========================================================
+   REGISTER PRODUCT
+========================================================= */
 
 function Register() {
 
   const emptyForm = {
 
     name: "",
+
     brand: "",
+
     manufacturer: "",
+
     category: "",
+
     batchNumber: "",
+
     manufacturingDate: "",
+
     expiryDate: ""
 
   };
 
+
   const [form, setForm] =
     useState(emptyForm);
+
 
   const [message, setMessage] =
     useState(null);
 
+
   const [loading, setLoading] =
     useState(false);
+
 
   function change(event) {
 
@@ -831,38 +1121,56 @@ function Register() {
       value
     } = event.target;
 
+
     setForm((previous) => ({
+
       ...previous,
+
       [name]: value
+
     }));
+
   }
+
 
   async function submit(event) {
 
     event.preventDefault();
 
+
     setLoading(true);
+
     setMessage(null);
+
 
     try {
 
       const data =
         await api.register(form);
 
+
       setMessage({
+
         ok: true,
+
         product: data.product
+
       });
 
+
       setForm(emptyForm);
+
 
     } catch (error) {
 
       setMessage({
+
         ok: false,
+
         text:
           error.message ||
           "Registration failed."
+
       });
 
     } finally {
@@ -870,28 +1178,83 @@ function Register() {
       setLoading(false);
 
     }
+
   }
 
+
+  function downloadQR() {
+
+    if (!message?.product?.productId) {
+      return;
+    }
+
+
+    const canvas =
+      document.getElementById(
+        "product-qr-code"
+      );
+
+
+    if (!canvas) {
+      return;
+    }
+
+
+    const image =
+      canvas.toDataURL("image/png");
+
+
+    const link =
+      document.createElement("a");
+
+
+    link.href = image;
+
+
+    link.download =
+      `${message.product.productId}-QR.png`;
+
+
+    document.body.appendChild(link);
+
+    link.click();
+
+    document.body.removeChild(link);
+
+  }
+
+
   return (
+
     <section className="container narrow">
 
       <div className="page-heading">
 
         <div className="eyebrow">
+
           <PlusCircle size={16} />
+
           MANUFACTURER PORTAL
+
         </div>
 
+
         <h1>
+
           Register a genuine product
+
         </h1>
 
+
         <p>
+
           Create a blockchain-backed identity
           for a product or batch.
+
         </p>
 
       </div>
+
 
       <form
         className="form-card"
@@ -908,6 +1271,7 @@ function Register() {
             required
           />
 
+
           <Field
             name="brand"
             label="Brand"
@@ -915,6 +1279,7 @@ function Register() {
             onChange={change}
             required
           />
+
 
           <Field
             name="manufacturer"
@@ -924,12 +1289,14 @@ function Register() {
             required
           />
 
+
           <Field
             name="category"
             label="Category"
             value={form.category}
             onChange={change}
           />
+
 
           <Field
             name="batchNumber"
@@ -939,6 +1306,7 @@ function Register() {
             required
           />
 
+
           <Field
             name="manufacturingDate"
             label="Manufacturing date"
@@ -946,6 +1314,7 @@ function Register() {
             value={form.manufacturingDate}
             onChange={change}
           />
+
 
           <Field
             name="expiryDate"
@@ -957,6 +1326,7 @@ function Register() {
 
         </div>
 
+
         <button
           className="btn primary wide"
           type="submit"
@@ -964,6 +1334,7 @@ function Register() {
         >
 
           <Blocks size={18} />
+
 
           {loading
             ? "Writing to blockchain..."
@@ -973,43 +1344,125 @@ function Register() {
 
       </form>
 
+
       {message?.ok && (
 
         <div className="success-message">
 
           <CheckCircle2 />
 
+
           <div>
 
             <b>
+
               Product registered successfully!
+
             </b>
 
+
             <p>
+
               Product ID:{" "}
+
               <strong>
+
                 {message.product.productId}
+
               </strong>
+
             </p>
+
 
             <p>
+
               Transaction:{" "}
+
               <code>
+
                 {message.product.transactionHash}
+
               </code>
+
             </p>
 
-            <Link
-              to={`/verify?product=${message.product.productId}`}
+
+            {/* =========================
+                GENERATED QR CODE
+            ========================= */}
+
+            <div
+              style={{
+                marginTop: "20px",
+                padding: "20px",
+                background: "#ffffff",
+                borderRadius: "12px",
+                display: "inline-flex",
+                flexDirection: "column",
+                alignItems: "center",
+                gap: "12px"
+              }}
             >
-              Go to verification →
-            </Link>
+
+              <QRCodeCanvas
+                id="product-qr-code"
+                value={message.product.productId}
+                size={220}
+                bgColor="#ffffff"
+                fgColor="#000000"
+                level="H"
+                includeMargin={true}
+              />
+
+
+              <strong
+                style={{
+                  color: "#111111"
+                }}
+              >
+
+                {message.product.productId}
+
+              </strong>
+
+            </div>
+
+
+            <div
+              className="hero-actions"
+              style={{
+                marginTop: "16px"
+              }}
+            >
+
+              <button
+                type="button"
+                className="btn primary"
+                onClick={downloadQR}
+              >
+
+                Download QR
+
+              </button>
+
+
+              <Link
+                className="btn secondary"
+                to={`/verify?product=${message.product.productId}`}
+              >
+
+                Verify Product →
+
+              </Link>
+
+            </div>
 
           </div>
 
         </div>
 
       )}
+
 
       {message && !message.ok && (
 
@@ -1024,12 +1477,15 @@ function Register() {
       )}
 
     </section>
+
   );
 }
 
-/* =========================
+
+
+/* =========================================================
    FIELD
-========================= */
+========================================================= */
 
 function Field({
   label,
@@ -1045,9 +1501,13 @@ function Field({
     <label className="field">
 
       <span>
+
         {label}
+
         {required ? " *" : ""}
+
       </span>
+
 
       <input
         name={name}
@@ -1058,33 +1518,58 @@ function Field({
       />
 
     </label>
+
   );
+
 }
 
-/* =========================
-   PRODUCTS
-========================= */
+
+
+/* =========================================================
+   PRODUCT REGISTRY
+   LOGIN REQUIRED
+   QR CODE SHOWN FOR EVERY PRODUCT
+========================================================= */
 
 function Products() {
 
   const [products, setProducts] =
     useState([]);
 
+
   const [loading, setLoading] =
     useState(true);
+
 
   useEffect(() => {
 
     api.products()
+
       .then((data) => {
-        setProducts(data.products || []);
+
+        setProducts(
+          data.products || []
+        );
+
       })
-      .catch(console.error)
+
+      .catch((error) => {
+
+        console.error(
+          "Product loading error:",
+          error
+        );
+
+      })
+
       .finally(() => {
+
         setLoading(false);
+
       });
 
   }, []);
+
 
   return (
 
@@ -1100,16 +1585,23 @@ function Products() {
 
         </div>
 
+
         <h1>
+
           Product registry
+
         </h1>
 
+
         <p>
+
           Products registered through this
-          demo are backed by the local blockchain.
+          demo are backed by the blockchain.
+
         </p>
 
       </div>
+
 
       <div className="table-wrap">
 
@@ -1119,33 +1611,59 @@ function Products() {
 
             <tr>
 
-              <th>Product ID</th>
-              <th>Product</th>
-              <th>Brand</th>
-              <th>Manufacturer</th>
-              <th>Batch</th>
-              <th>Transaction</th>
+              <th>
+                Product ID
+              </th>
+
+              <th>
+                QR Code
+              </th>
+
+              <th>
+                Product
+              </th>
+
+              <th>
+                Brand
+              </th>
+
+              <th>
+                Manufacturer
+              </th>
+
+              <th>
+                Batch
+              </th>
+
+              <th>
+                Transaction
+              </th>
 
             </tr>
 
           </thead>
 
+
           <tbody>
+
 
             {loading && (
 
               <tr>
 
                 <td
-                  colSpan="6"
+                  colSpan="7"
                   className="empty"
                 >
+
                   Loading products...
+
                 </td>
 
               </tr>
 
             )}
+
 
             {!loading &&
               products.length === 0 && (
@@ -1153,20 +1671,28 @@ function Products() {
                 <tr>
 
                   <td
-                    colSpan="6"
+                    colSpan="7"
                     className="empty"
                   >
+
                     No products registered yet.
+
                   </td>
 
                 </tr>
 
               )}
 
+
             {!loading &&
               products.map((product) => (
 
-                <tr key={product.productId}>
+                <tr
+                  key={product.productId}
+                >
+
+
+                  {/* PRODUCT ID */}
 
                   <td>
 
@@ -1174,26 +1700,97 @@ function Products() {
                       to={`/verify?product=${product.productId}`}
                       className="id-link"
                     >
+
                       {product.productId}
+
                     </Link>
 
                   </td>
 
+
+                  {/* =========================
+                      QR CODE
+                  ========================= */}
+
                   <td>
+
+                    <div
+                      style={{
+                        background: "#ffffff",
+                        padding: "8px",
+                        borderRadius: "8px",
+                        display: "inline-flex",
+                        flexDirection: "column",
+                        alignItems: "center",
+                        gap: "5px"
+                      }}
+                    >
+
+                      <QRCodeCanvas
+                        value={
+                          product.productId
+                        }
+                        size={90}
+                        bgColor="#ffffff"
+                        fgColor="#000000"
+                        level="H"
+                        includeMargin={true}
+                      />
+
+
+                      <small
+                        style={{
+                          color: "#111111",
+                          fontWeight: "600"
+                        }}
+                      >
+
+                        Scan to verify
+
+                      </small>
+
+                    </div>
+
+                  </td>
+
+
+                  {/* PRODUCT */}
+
+                  <td>
+
                     {product.name}
+
                   </td>
 
+
+                  {/* BRAND */}
+
                   <td>
+
                     {product.brand}
+
                   </td>
 
+
+                  {/* MANUFACTURER */}
+
                   <td>
+
                     {product.manufacturer}
+
                   </td>
 
+
+                  {/* BATCH */}
+
                   <td>
+
                     {product.batchNumber}
+
                   </td>
+
+
+                  {/* TRANSACTION */}
 
                   <td>
 
@@ -1218,39 +1815,52 @@ function Products() {
       </div>
 
     </section>
+
   );
+
 }
 
-/* =========================
+
+
+/* =========================================================
    LOGIN / SIGNUP
-========================= */
+========================================================= */
 
 function Auth() {
 
   const [mode, setMode] =
     useState("login");
 
+
   const [name, setName] =
     useState("");
+
 
   const [email, setEmail] =
     useState("");
 
+
   const [password, setPassword] =
     useState("");
+
 
   const [loading, setLoading] =
     useState(false);
 
+
   const [message, setMessage] =
     useState(null);
+
 
   async function submit(event) {
 
     event.preventDefault();
 
+
     setLoading(true);
+
     setMessage(null);
+
 
     try {
 
@@ -1262,14 +1872,18 @@ function Auth() {
           password
         });
 
+
         setMessage({
           type: "success",
           text:
             "Account created successfully. You can now login."
         });
 
+
         setMode("login");
+
         setPassword("");
+
 
       } else {
 
@@ -1279,15 +1893,18 @@ function Auth() {
             password
           });
 
+
         localStorage.setItem(
           "blockverify_token",
           data.token
         );
 
+
         localStorage.setItem(
           "blockverify_user",
           JSON.stringify(data.user)
         );
+
 
         setMessage({
           type: "success",
@@ -1295,11 +1912,15 @@ function Auth() {
             `Welcome back, ${data.user.name}!`
         });
 
+
         setTimeout(() => {
+
           window.location.href = "/";
+
         }, 700);
 
       }
+
 
     } catch (error) {
 
@@ -1315,7 +1936,9 @@ function Auth() {
       setLoading(false);
 
     }
+
   }
+
 
   return (
 
@@ -1333,6 +1956,7 @@ function Auth() {
 
         </div>
 
+
         <h1>
 
           {mode === "login"
@@ -1340,6 +1964,7 @@ function Auth() {
             : "Create your account"}
 
         </h1>
+
 
         <p>
 
@@ -1351,10 +1976,12 @@ function Auth() {
 
       </div>
 
+
       <form
         className="form-card auth-card"
         onSubmit={submit}
       >
+
 
         {mode === "register" && (
 
@@ -1363,6 +1990,7 @@ function Auth() {
             <span>
               Full name
             </span>
+
 
             <input
               type="text"
@@ -1378,11 +2006,13 @@ function Auth() {
 
         )}
 
+
         <label className="field">
 
           <span>
             Email address
           </span>
+
 
           <input
             type="email"
@@ -1396,11 +2026,13 @@ function Auth() {
 
         </label>
 
+
         <label className="field">
 
           <span>
             Password
           </span>
+
 
           <input
             type="password"
@@ -1414,6 +2046,7 @@ function Auth() {
           />
 
         </label>
+
 
         <button
           className="btn primary wide"
@@ -1429,6 +2062,7 @@ function Auth() {
 
         </button>
 
+
         {message && (
 
           <div
@@ -1443,19 +2077,24 @@ function Auth() {
               ? <CheckCircle2 />
               : <AlertTriangle />}
 
+
             <span>
+
               {message.text}
+
             </span>
 
           </div>
 
         )}
 
+
         <div className="auth-switch">
 
           {mode === "login"
             ? "Don't have an account?"
             : "Already have an account?"}
+
 
           <button
             type="button"
@@ -1483,12 +2122,46 @@ function Auth() {
       </form>
 
     </section>
+
   );
+
 }
 
-/* =========================
+
+
+/* =========================================================
+   PROTECTED ROUTE
+========================================================= */
+
+function ProtectedRoute({ children }) {
+
+  const token =
+    localStorage.getItem(
+      "blockverify_token"
+    );
+
+
+  if (!token) {
+
+    return (
+      <Navigate
+        to="/auth"
+        replace
+      />
+    );
+
+  }
+
+
+  return children;
+
+}
+
+
+
+/* =========================================================
    APP
-========================= */
+========================================================= */
 
 export default function App() {
 
@@ -1498,33 +2171,57 @@ export default function App() {
 
       <Routes>
 
+
+        {/* =========================
+            PUBLIC ROUTES
+        ========================= */}
+
         <Route
           path="/"
           element={<Dashboard />}
         />
+
 
         <Route
           path="/verify"
           element={<Verify />}
         />
 
-        <Route
-          path="/register"
-          element={<Register />}
-        />
-
-        <Route
-          path="/products"
-          element={<Products />}
-        />
 
         <Route
           path="/auth"
           element={<Auth />}
         />
 
+
+        {/* =========================
+            LOGIN REQUIRED
+        ========================= */}
+
+        <Route
+          path="/register"
+          element={
+            <ProtectedRoute>
+              <Register />
+            </ProtectedRoute>
+          }
+        />
+
+
+        <Route
+          path="/products"
+          element={
+            <ProtectedRoute>
+              <Products />
+            </ProtectedRoute>
+          }
+        />
+
+
       </Routes>
 
     </Layout>
+
   );
+
 }
