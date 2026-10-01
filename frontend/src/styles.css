@@ -62,3 +62,356 @@ footer{border-top:1px solid #1b2a3b;color:#64778c;text-align:center;font-size:11
   .hero{grid-template-columns:1fr;gap:30px;padding-top:25px}.hero-card{display:none}.stats-grid,.info-grid{grid-template-columns:1fr}.container{padding:40px 0}
   h1{font-size:44px}.page-heading h1{font-size:36px}.details,.form-grid{grid-template-columns:1fr}.input-row{flex-direction:column}
 }
+/* =================================
+   QR CODE SCANNER
+================================= */
+
+.qr-section {
+  margin-top: 22px;
+  text-align: center;
+}
+
+.qr-button {
+  min-width: 190px;
+  justify-content: center;
+}
+
+.qr-scanner-box {
+  margin-top: 20px;
+  padding: 24px;
+  border: 1px solid #d9dee8;
+  border-radius: 18px;
+  background: #ffffff;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.06);
+}
+
+.qr-scanner-box h3 {
+  margin: 0 0 8px;
+}
+
+.qr-scanner-box p {
+  margin: 0 0 20px;
+  color: #667085;
+}
+
+#qr-reader {
+  width: 100%;
+  max-width: 500px;
+  margin: 0 auto 20px;
+}
+
+#qr-reader video {
+  border-radius: 14px;
+}
+
+#qr-reader button {
+  border-radius: 8px;
+  padding: 8px 14px;
+  border: 1px solid #d0d5dd;
+  background: #ffffff;
+  cursor: pointer;
+}
+
+#qr-reader select {
+  padding: 8px;
+  border-radius: 8px;
+  border: 1px solid #d0d5dd;
+}
+
+@media (max-width: 600px) {
+
+  .qr-scanner-box {
+    padding: 16px;
+  }
+
+  #qr-reader {
+    width: 100%;
+  }
+
+}
+/* =================================
+   LIGHT / DARK MODE
+================================= */
+
+.theme-toggle {
+  width: 42px;
+  height: 42px;
+  border: 1px solid #d9dee8;
+  border-radius: 50%;
+  background: #ffffff;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  font-size: 19px;
+  transition: 0.2s ease;
+  margin-left: 10px;
+}
+
+.theme-toggle:hover {
+  transform: scale(1.05);
+}
+
+
+/* =================================
+   LIGHT MODE
+================================= */
+
+body {
+  background: #ffffff;
+  color: #111111;
+}
+
+.app-shell {
+  background: #ffffff;
+  color: #111111;
+}
+
+.topbar {
+  background: #ffffff;
+  border-bottom-color: #e5e5e5;
+}
+
+.brand {
+  color: #111111;
+}
+
+.nav a {
+  color: #333333;
+}
+
+.nav a:hover,
+.nav a.active {
+  color: #000000;
+  background: #f2f2f2;
+}
+
+.hero-card,
+.panel,
+.stat-card,
+.verify-box,
+.form-card,
+.qr-scanner-box {
+  background: #ffffff;
+  color: #111111;
+  border-color: #e5e5e5;
+}
+
+h1,
+h2,
+h3 {
+  color: #111111;
+}
+
+p {
+  color: #555555;
+}
+
+input,
+select,
+textarea {
+  background: #ffffff;
+  color: #111111;
+  border-color: #cccccc;
+}
+
+input::placeholder {
+  color: #888888;
+}
+
+.tip {
+  background: #f7f7f7;
+  border-color: #e5e5e5;
+}
+
+.table-wrap {
+  background: #ffffff;
+  border-color: #e5e5e5;
+}
+
+table {
+  color: #111111;
+}
+
+th {
+  background: #f3f3f3;
+  color: #111111;
+}
+
+td {
+  border-color: #e5e5e5;
+}
+
+tr:hover td {
+  background: #f8f8f8;
+}
+
+footer {
+  background: #ffffff;
+  color: #666666;
+  border-top-color: #e5e5e5;
+}
+
+.theme-toggle {
+  background: #ffffff;
+  color: #111111;
+  border: 1px solid #cccccc;
+}
+
+
+/* =================================
+   DARK MODE
+================================= */
+
+body.dark-mode {
+  background: #000000;
+  color: #ffffff;
+}
+
+body.dark-mode .app-shell {
+  background: #000000;
+  color: #ffffff;
+}
+
+body.dark-mode .topbar {
+  background: #000000;
+  border-bottom: 1px solid #222222;
+}
+
+body.dark-mode .brand {
+  color: #ffffff;
+}
+
+body.dark-mode .nav a {
+  color: #bbbbbb;
+}
+
+body.dark-mode .nav a:hover,
+body.dark-mode .nav a.active {
+  color: #ffffff;
+  background: #1a1a1a;
+}
+
+
+/* CARDS */
+
+body.dark-mode .hero-card,
+body.dark-mode .panel,
+body.dark-mode .stat-card,
+body.dark-mode .verify-box,
+body.dark-mode .form-card,
+body.dark-mode .qr-scanner-box {
+  background: #0a0a0a;
+  color: #ffffff;
+  border: 1px solid #222222;
+}
+
+
+/* TEXT */
+
+body.dark-mode h1,
+body.dark-mode h2,
+body.dark-mode h3,
+body.dark-mode strong,
+body.dark-mode b {
+  color: #ffffff;
+}
+
+body.dark-mode p {
+  color: #aaaaaa;
+}
+
+
+/* INPUTS */
+
+body.dark-mode input,
+body.dark-mode select,
+body.dark-mode textarea {
+  background: #050505;
+  color: #ffffff;
+  border: 1px solid #333333;
+}
+
+body.dark-mode input::placeholder {
+  color: #777777;
+}
+
+
+/* TIP */
+
+body.dark-mode .tip {
+  background: #0a0a0a;
+  border: 1px solid #222222;
+}
+
+
+/* TABLE */
+
+body.dark-mode .table-wrap {
+  background: #000000;
+  border: 1px solid #222222;
+}
+
+body.dark-mode table {
+  color: #ffffff;
+}
+
+body.dark-mode th {
+  background: #111111;
+  color: #ffffff;
+}
+
+body.dark-mode td {
+  border-color: #222222;
+  color: #dddddd;
+}
+
+body.dark-mode tr:hover td {
+  background: #151515;
+}
+
+
+/* QR SCANNER */
+
+body.dark-mode #qr-reader {
+  background: #000000;
+  color: #ffffff;
+}
+
+body.dark-mode #qr-reader button {
+  background: #111111;
+  color: #ffffff;
+  border-color: #333333;
+}
+
+
+/* FOOTER */
+
+body.dark-mode footer {
+  background: #000000;
+  color: #777777;
+  border-top: 1px solid #222222;
+}
+
+
+/* THEME BUTTON */
+
+body.dark-mode .theme-toggle {
+  background: #111111;
+  color: #ffffff;
+  border: 1px solid #333333;
+}
+
+
+/* =================================
+   MOBILE
+================================= */
+
+@media (max-width: 800px) {
+
+  .theme-toggle {
+    margin-left: auto;
+    margin-right: 8px;
+  }
+
+}
