@@ -64,6 +64,15 @@ if (
   );
 }
 
+if (
+  !process.env.JWT_SECRET ||
+  process.env.JWT_SECRET.includes("change_this")
+) {
+  console.warn(
+    "WARNING: JWT_SECRET is using the development fallback."
+  );
+}
+
 
 /* =====================================================
    BLOCKCHAIN
@@ -96,26 +105,41 @@ const contract =
 ===================================================== */
 
 function readProducts() {
-
   try {
+    if (!fs.existsSync(dataFile)) {
+      return [];
+    }
 
-    return JSON.parse(
+    const data =
       fs.readFileSync(
         dataFile,
         "utf8"
-      )
+      );
+
+    if (!data.trim()) {
+      return [];
+    }
+
+    const parsed =
+      JSON.parse(data);
+
+    return Array.isArray(parsed)
+      ? parsed
+      : [];
+
+  } catch (error) {
+
+    console.error(
+      "Error reading products.json:",
+      error
     );
 
-  } catch {
-
     return [];
-
   }
 }
 
 
 function writeProducts(products) {
-
   fs.writeFileSync(
     dataFile,
     JSON.stringify(
@@ -124,31 +148,46 @@ function writeProducts(products) {
       2
     )
   );
-
 }
 
 
 function readUsers() {
-
   try {
 
-    return JSON.parse(
+    if (!fs.existsSync(usersFile)) {
+      return [];
+    }
+
+    const data =
       fs.readFileSync(
         usersFile,
         "utf8"
-      )
+      );
+
+    if (!data.trim()) {
+      return [];
+    }
+
+    const parsed =
+      JSON.parse(data);
+
+    return Array.isArray(parsed)
+      ? parsed
+      : [];
+
+  } catch (error) {
+
+    console.error(
+      "Error reading users.json:",
+      error
     );
 
-  } catch {
-
     return [];
-
   }
 }
 
 
 function writeUsers(users) {
-
   fs.writeFileSync(
     usersFile,
     JSON.stringify(
@@ -157,7 +196,6 @@ function writeUsers(users) {
       2
     )
   );
-
 }
 
 
@@ -186,9 +224,12 @@ function authenticateToken(req, res, next) {
   if (!authHeader) {
 
     return res.status(401).json({
+
       success: false,
+
       message:
         "Login required. Please login to continue."
+
     });
 
   }
@@ -198,18 +239,23 @@ function authenticateToken(req, res, next) {
 
   if (
     parts.length !== 2 ||
-    parts[0] !== "Bearer"
+    parts[0] !== "Bearer" ||
+    !parts[1]
   ) {
 
     return res.status(401).json({
+
       success: false,
+
       message:
         "Invalid authorization format."
+
     });
 
   }
 
-  const token = parts[1];
+  const token =
+    parts[1];
 
   try {
 
@@ -219,16 +265,25 @@ function authenticateToken(req, res, next) {
         JWT_SECRET
       );
 
-    req.user = decoded;
+    req.user =
+      decoded;
 
     next();
 
   } catch (error) {
 
+    console.error(
+      "JWT verification failed:",
+      error.message
+    );
+
     return res.status(401).json({
+
       success: false,
+
       message:
         "Your login session has expired. Please login again."
+
     });
 
   }
@@ -238,21 +293,31 @@ function authenticateToken(req, res, next) {
 
 /* =====================================================
    HEALTH
+   PUBLIC
 ===================================================== */
 
 app.get(
   "/api/health",
   async (req, res) => {
 
-    let blockchain = false;
+    let blockchain =
+      false;
 
     try {
 
       await provider.getBlockNumber();
 
-      blockchain = true;
+      blockchain =
+        true;
 
-    } catch {}
+    } catch (error) {
+
+      console.error(
+        "Blockchain health check failed:",
+        error.message
+      );
+
+    }
 
     res.json({
 
@@ -273,6 +338,7 @@ app.get(
 
 /* =====================================================
    AUTH - REGISTER
+   PUBLIC
 ===================================================== */
 
 app.post(
@@ -288,15 +354,43 @@ app.post(
       } = req.body;
 
       if (
-        !name ||
-        !email ||
+        typeof name !== "string" ||
+        typeof email !== "string" ||
+        typeof password !== "string"
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Name, email and password are required."
+
+        });
+
+      }
+
+      const cleanName =
+        name.trim();
+
+      const normalizedEmail =
+        email
+          .trim()
+          .toLowerCase();
+
+      if (
+        !cleanName ||
+        !normalizedEmail ||
         !password
       ) {
 
         return res.status(400).json({
+
           success: false,
+
           message:
             "Name, email and password are required."
+
         });
 
       }
@@ -304,9 +398,12 @@ app.post(
       if (password.length < 6) {
 
         return res.status(400).json({
+
           success: false,
+
           message:
             "Password must be at least 6 characters."
+
         });
 
       }
@@ -314,24 +411,25 @@ app.post(
       const users =
         readUsers();
 
-      const normalizedEmail =
-        email
-          .trim()
-          .toLowerCase();
-
       const existingUser =
         users.find(
           user =>
-            user.email ===
-            normalizedEmail
+            typeof user.email === "string" &&
+            user.email
+              .trim()
+              .toLowerCase() ===
+              normalizedEmail
         );
 
       if (existingUser) {
 
         return res.status(409).json({
+
           success: false,
+
           message:
             "An account with this email already exists."
+
         });
 
       }
@@ -348,7 +446,7 @@ app.post(
           crypto.randomUUID(),
 
         name:
-          name.trim(),
+          cleanName,
 
         email:
           normalizedEmail,
@@ -365,7 +463,11 @@ app.post(
 
       writeUsers(users);
 
-      res.status(201).json({
+      console.log(
+        `New user registered: ${normalizedEmail}`
+      );
+
+      return res.status(201).json({
 
         success: true,
 
@@ -376,9 +478,12 @@ app.post(
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "Registration error:",
+        error
+      );
 
-      res.status(500).json({
+      return res.status(500).json({
 
         success: false,
 
@@ -395,6 +500,7 @@ app.post(
 
 /* =====================================================
    AUTH - LOGIN
+   PUBLIC
 ===================================================== */
 
 app.post(
@@ -409,14 +515,38 @@ app.post(
       } = req.body;
 
       if (
-        !email ||
+        typeof email !== "string" ||
+        typeof password !== "string"
+      ) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Email and password are required."
+
+        });
+
+      }
+
+      const normalizedEmail =
+        email
+          .trim()
+          .toLowerCase();
+
+      if (
+        !normalizedEmail ||
         !password
       ) {
 
         return res.status(400).json({
+
           success: false,
+
           message:
             "Email and password are required."
+
         });
 
       }
@@ -424,58 +554,186 @@ app.post(
       const users =
         readUsers();
 
-      const normalizedEmail =
-        email
-          .trim()
-          .toLowerCase();
-
       const user =
         users.find(
           item =>
-            item.email ===
-            normalizedEmail
+            item &&
+            typeof item.email === "string" &&
+            item.email
+              .trim()
+              .toLowerCase() ===
+              normalizedEmail
         );
 
+      /*
+       * User does not exist.
+       */
       if (!user) {
 
+        console.log(
+          `Login failed: user not found - ${normalizedEmail}`
+        );
+
         return res.status(401).json({
+
           success: false,
+
           message:
             "Invalid email or password."
+
         });
 
       }
 
-      const passwordMatch =
-        await bcrypt.compare(
-          password,
-          user.password
+      /*
+       * IMPORTANT FIX:
+       *
+       * Never call bcrypt.compare() with an undefined
+       * password hash.
+       */
+      let storedPassword =
+        user.password;
+
+      if (
+        typeof storedPassword !== "string" ||
+        !storedPassword.trim()
+      ) {
+
+        console.error(
+          `Login failed: password hash missing for ${normalizedEmail}`
         );
+
+        return res.status(401).json({
+
+          success: false,
+
+          message:
+            "This account has an invalid password record. Please create a new account."
+
+        });
+
+      }
+
+      let passwordMatch =
+        false;
+
+      /*
+       * Normal bcrypt password.
+       */
+      if (
+        storedPassword.startsWith("$2a$") ||
+        storedPassword.startsWith("$2b$") ||
+        storedPassword.startsWith("$2y$")
+      ) {
+
+        passwordMatch =
+          await bcrypt.compare(
+            password,
+            storedPassword
+          );
+
+      } else {
+
+        /*
+         * Legacy password support.
+         *
+         * If an older local users.json contains a
+         * plain-text password, allow one successful
+         * login and immediately convert it to bcrypt.
+         */
+        if (
+          storedPassword === password
+        ) {
+
+          passwordMatch =
+            true;
+
+          const newHash =
+            await bcrypt.hash(
+              password,
+              10
+            );
+
+          user.password =
+            newHash;
+
+          const userIndex =
+            users.findIndex(
+              item =>
+                item.id === user.id
+            );
+
+          if (userIndex !== -1) {
+
+            users[userIndex] =
+              user;
+
+            writeUsers(users);
+
+            console.log(
+              `Migrated legacy password to bcrypt for ${normalizedEmail}`
+            );
+
+          }
+
+        } else {
+
+          passwordMatch =
+            false;
+
+        }
+
+      }
 
       if (!passwordMatch) {
 
+        console.log(
+          `Login failed: incorrect password - ${normalizedEmail}`
+        );
+
         return res.status(401).json({
+
           success: false,
+
           message:
             "Invalid email or password."
+
         });
 
       }
 
+      /*
+       * Create JWT.
+       */
       const token =
         jwt.sign(
+
           {
-            id: user.id,
-            name: user.name,
-            email: user.email
+            id:
+              user.id,
+
+            name:
+              user.name,
+
+            email:
+              user.email
+
           },
+
           JWT_SECRET,
+
           {
-            expiresIn: "7d"
+            expiresIn:
+              "7d"
           }
+
         );
 
-      res.json({
+      console.log(
+        `Login successful: ${normalizedEmail}`
+      );
+
+      return res.json({
 
         success: true,
 
@@ -486,11 +744,14 @@ app.post(
 
         user: {
 
-          id: user.id,
+          id:
+            user.id,
 
-          name: user.name,
+          name:
+            user.name,
 
-          email: user.email
+          email:
+            user.email
 
         }
 
@@ -498,9 +759,12 @@ app.post(
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "LOGIN ERROR:",
+        error
+      );
 
-      res.status(500).json({
+      return res.status(500).json({
 
         success: false,
 
@@ -517,6 +781,7 @@ app.post(
 
 /* =====================================================
    AUTH - CURRENT USER
+   LOGIN REQUIRED
 ===================================================== */
 
 app.get(
@@ -528,7 +793,8 @@ app.get(
 
       success: true,
 
-      user: req.user
+      user:
+        req.user
 
     });
 
@@ -538,6 +804,7 @@ app.get(
 
 /* =====================================================
    AUTH - LOGOUT
+   LOGIN REQUIRED
 ===================================================== */
 
 app.post(
@@ -614,6 +881,10 @@ app.post(
       const productId =
         generateProductId();
 
+      console.log(
+        `Registering product ${productId} by ${req.user.email}`
+      );
+
       const tx =
         await contract.registerProduct(
 
@@ -683,22 +954,30 @@ app.post(
 
       writeProducts(products);
 
-      res.status(201).json({
+      console.log(
+        `Product registered successfully: ${productId}`
+      );
+
+      return res.status(201).json({
 
         success: true,
 
         message:
           "Product registered on blockchain.",
 
-        product: record
+        product:
+          record
 
       });
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "PRODUCT REGISTRATION ERROR:",
+        error
+      );
 
-      res.status(500).json({
+      return res.status(500).json({
 
         success: false,
 
@@ -740,7 +1019,22 @@ app.get(
       }
 
       const productId =
-        req.params.productId.trim();
+        String(
+          req.params.productId || ""
+        ).trim();
+
+      if (!productId) {
+
+        return res.status(400).json({
+
+          success: false,
+
+          message:
+            "Product ID is required."
+
+        });
+
+      }
 
       const exists =
         await contract.productExists(
@@ -755,7 +1049,8 @@ app.get(
 
           authentic: false,
 
-          status: "NOT_FOUND",
+          status:
+            "NOT_FOUND",
 
           message:
             "Product was not found on the blockchain."
@@ -796,7 +1091,9 @@ app.get(
           p.expiryDate,
 
         registeredAt:
-          Number(p.registeredAt),
+          Number(
+            p.registeredAt
+          ),
 
         registeredBy:
           p.registeredBy,
@@ -806,7 +1103,7 @@ app.get(
 
       };
 
-      res.json({
+      return res.json({
 
         success: true,
 
@@ -829,9 +1126,12 @@ app.get(
 
     } catch (error) {
 
-      console.error(error);
+      console.error(
+        "PRODUCT VERIFICATION ERROR:",
+        error
+      );
 
-      res.status(500).json({
+      return res.status(500).json({
 
         success: false,
 
@@ -858,17 +1158,127 @@ app.get(
   authenticateToken,
   (req, res) => {
 
-    const products =
-      readProducts();
+    try {
 
-    res.json({
+      const products =
+        readProducts();
 
-      success: true,
+      return res.json({
 
-      products,
+        success: true,
 
-      count:
-        products.length
+        products,
+
+        count:
+          products.length
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "PRODUCT REGISTRY ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          "Unable to load product registry."
+
+      });
+
+    }
+
+  }
+);
+
+
+/* =====================================================
+   STATS
+   PUBLIC
+===================================================== */
+
+app.get(
+  "/api/stats",
+  (req, res) => {
+
+    try {
+
+      const products =
+        readProducts();
+
+      const brands =
+        new Set(
+          products
+            .map(
+              p => p.brand
+            )
+            .filter(Boolean)
+        ).size;
+
+      const manufacturers =
+        new Set(
+          products
+            .map(
+              p => p.manufacturer
+            )
+            .filter(Boolean)
+        ).size;
+
+      return res.json({
+
+        success: true,
+
+        totalProducts:
+          products.length,
+
+        brands,
+
+        manufacturers,
+
+        verifiedOnChain:
+          products.length
+
+      });
+
+    } catch (error) {
+
+      console.error(
+        "STATS ERROR:",
+        error
+      );
+
+      return res.status(500).json({
+
+        success: false,
+
+        message:
+          "Unable to load statistics."
+
+      });
+
+    }
+
+  }
+);
+
+
+/* =====================================================
+   404 HANDLER
+===================================================== */
+
+app.use(
+  (req, res) => {
+
+    res.status(404).json({
+
+      success: false,
+
+      message:
+        "API endpoint not found."
 
     });
 
@@ -877,45 +1287,23 @@ app.get(
 
 
 /* =====================================================
-   STATS
-   LOGIN REQUIRED
+   GLOBAL ERROR HANDLER
 ===================================================== */
 
-app.get(
-  "/api/stats",
-  authenticateToken,
-  (req, res) => {
+app.use(
+  (error, req, res, next) => {
 
-    const products =
-      readProducts();
+    console.error(
+      "GLOBAL SERVER ERROR:",
+      error
+    );
 
-    const brands =
-      new Set(
-        products.map(
-          p => p.brand
-        )
-      ).size;
+    res.status(500).json({
 
-    const manufacturers =
-      new Set(
-        products.map(
-          p => p.manufacturer
-        )
-      ).size;
+      success: false,
 
-    res.json({
-
-      success: true,
-
-      totalProducts:
-        products.length,
-
-      brands,
-
-      manufacturers,
-
-      verifiedOnChain:
-        products.length
+      message:
+        "Internal server error."
 
     });
 
@@ -932,7 +1320,15 @@ app.listen(
   () => {
 
     console.log(
-      `API running at http://localhost:${PORT}`
+      `API running on port ${PORT}`
+    );
+
+    console.log(
+      `Blockchain RPC: ${RPC_URL}`
+    );
+
+    console.log(
+      `Contract: ${CONTRACT_ADDRESS || "Not configured"}`
     );
 
   }
